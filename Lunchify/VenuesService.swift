@@ -59,7 +59,8 @@ struct VenuesService {
         dateFormatter.timeZone = NSTimeZone.localTimeZone()
         
         // Return
-        return dateFormatter.stringFromDate(today)
+        //return dateFormatter.stringFromDate(today)
+        return "2016-04-18"
     }
     
 }

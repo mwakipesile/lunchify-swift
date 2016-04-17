@@ -12,13 +12,22 @@ import JGProgressHUD
 import UIColor_Hex_Swift
 import DZNEmptyDataSet
 
-class VenuesTableViewController: UITableViewController, CLLocationManagerDelegate, UISearchResultsUpdating, DZNEmptyDataSetSource, DZNEmptyDataSetDelegate {
-    
-    var shouldEmptyStateBeShowed: Bool = false
+class VenuesTableViewController: UIViewController {
+
+    // Venues
+    let venuesService = VenuesService()
     var venues: [Venue] = []
     var filteredVenues: [Venue] = []
-    let venuesService = VenuesService()
+    
+    // UI
+    var shouldEmptyStateBeShowed: Bool = false
     var resultSearchController: UISearchController?
+    var refreshControl: UIRefreshControl!
+    let HUD = JGProgressHUD(style: .Dark)
+    @IBOutlet weak var tableView: UITableView!
+    
+    // Location Manager
+    let locationManager = CLLocationManager()
     var location: CLLocation? {
         didSet {
             if oldValue == nil {
@@ -26,9 +35,7 @@ class VenuesTableViewController: UITableViewController, CLLocationManagerDelegat
             }
         }
     }
-    let locationManager = CLLocationManager()
-    let HUD = JGProgressHUD(style: .Dark)
-
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         self.configureView()
@@ -38,6 +45,14 @@ class VenuesTableViewController: UITableViewController, CLLocationManagerDelegat
         locationManager.distanceFilter = 100
         locationManager.requestWhenInUseAuthorization()
         locationManager.startUpdatingLocation()
+        
+        // Table View
+        tableView.delegate = self
+        tableView.dataSource = self
+        
+        // Empty State
+        tableView.emptyDataSetSource = self
+        tableView.emptyDataSetDelegate = self
     }
     
     override func viewWillAppear(animated: Bool) {
@@ -77,9 +92,11 @@ class VenuesTableViewController: UITableViewController, CLLocationManagerDelegat
             return controller
         })()
         
-        // Empty State
-        tableView.emptyDataSetSource = self
-        tableView.emptyDataSetDelegate = self
+        // Refresh View
+        self.refreshControl = UIRefreshControl()
+        self.refreshControl.addTarget(self, action: #selector(VenuesTableViewController.refreshVenues(_:)), forControlEvents: UIControlEvents.ValueChanged)
+        //self.refreshControl.backgroundColor = UIColor.whiteColor()
+        self.tableView.addSubview(self.refreshControl)
     }
     
     func endRefreshing() {
@@ -113,38 +130,8 @@ class VenuesTableViewController: UITableViewController, CLLocationManagerDelegat
         }
     }
     
-    @IBAction func refreshVenues(sender: UIRefreshControl) {
+    func refreshVenues(sender: UIRefreshControl) {
         loadVenues()
-    }
-
-    // MARK: - Table view data source
-
-    override func numberOfSectionsInTableView(tableView: UITableView) -> Int {
-        return 1
-    }
-
-    override func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return filteredVenues.count
-    }
-
-    
-    override func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCellWithIdentifier("VenueCell", forIndexPath: indexPath) as! VenueTableViewCell
-        let venue = self.filteredVenues[indexPath.row]
-
-        // Configure the cell...
-        cell.venueTitleLabel?.text = venue.name
-        cell.venueAddressLabel?.text = venue.address
-        
-        if let location = self.location {
-            cell.venueDistanceLabel?.text = venue.distanceFromLocation(location)
-        }
-        
-        return cell
-    }
-    
-    override func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
-        tableView.deselectRowAtIndexPath(indexPath, animated: true)
     }
 
     // MARK: - Navigation
@@ -159,6 +146,40 @@ class VenuesTableViewController: UITableViewController, CLLocationManagerDelegat
                 controller.date = venuesService.getMenuDate("EEEE")
             }
         }
+    }
+
+}
+
+extension VenuesTableViewController: UITableViewDelegate, UITableViewDataSource, CLLocationManagerDelegate, UISearchResultsUpdating, DZNEmptyDataSetSource, DZNEmptyDataSetDelegate {
+    
+    // MARK: - Table view data source
+    
+    func numberOfSectionsInTableView(tableView: UITableView) -> Int {
+        return 1
+    }
+    
+    func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return filteredVenues.count
+    }
+    
+    
+    func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCellWithIdentifier("VenueCell", forIndexPath: indexPath) as! VenueTableViewCell
+        let venue = self.filteredVenues[indexPath.row]
+        
+        // Configure the cell...
+        cell.venueTitleLabel?.text = venue.name
+        cell.venueAddressLabel?.text = venue.address
+        
+        if let location = self.location {
+            cell.venueDistanceLabel?.text = venue.distanceFromLocation(location)
+        }
+        
+        return cell
+    }
+    
+    func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
+        tableView.deselectRowAtIndexPath(indexPath, animated: true)
     }
     
     // MARK: - Location
@@ -212,4 +233,5 @@ class VenuesTableViewController: UITableViewController, CLLocationManagerDelegat
     func emptyDataSetShouldDisplay(scrollView: UIScrollView!) -> Bool {
         return self.shouldEmptyStateBeShowed
     }
+    
 }
